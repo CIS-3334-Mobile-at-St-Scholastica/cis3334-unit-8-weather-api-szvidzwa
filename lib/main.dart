@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'my_weather_model.dart';
+import 'weather_api.dart';
 
 void main() {
   runApp(const MyApp());
@@ -29,12 +31,35 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  Widget weatherTile (int position) {
-    print ("Inside weatherTile and setting up tile for positon ${position}");
+  late Future<List<Forecast>> futureWeatherForcasts;
+
+  @override
+  void initState() {
+    super.initState();
+    futureWeatherForcasts = fetchWeather();
+  }
+
+  Widget weatherImage(Weather weather) {
+    String iconName;
+    switch (weather.main) {
+      case MainEnum.RAIN:
+        iconName = 'rain.png';
+        break;
+      case MainEnum.CLOUDS:
+        iconName = 'cloud.png';
+        break;
+      default:
+        iconName = 'sun.png';
+    }
+    return Image(image: AssetImage('graphics/$iconName'));
+  }
+
+  Widget weatherTile(Forecast forecast) {
     return ListTile(
-      leading: Image(image: AssetImage('graphics/sun.png')),
-      title: Text("Title Here"),
-      subtitle: Text("Subtitle Here"),
+      leading: weatherImage(forecast.weather.first),
+      title: Text(forecast.weather.first.description.toString().split('.').last),
+      subtitle: Text(
+          "The high will be ${forecast.main.tempMax} and the low will be ${forecast.main.tempMin}"),
     );
   }
 
@@ -44,15 +69,28 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         title: Text(widget.title),
       ),
-      body: ListView.builder(
-        itemCount: 4,
-        itemBuilder: (BuildContext context, int position) {
-          return Card(
-            child: weatherTile(position),
-          );
+      body: FutureBuilder<List<Forecast>>(
+        future: futureWeatherForcasts,
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            if (snapshot.data!.isEmpty) {
+              return Container();
+            }
+            return ListView.builder(
+              itemCount: snapshot.data!.length,
+              itemBuilder: (BuildContext context, int position) {
+                return Card(
+                  child: weatherTile(snapshot.data![position]),
+                );
+              },
+            );
+          } else if (snapshot.hasError) {
+            return Text('${snapshot.error}');
+          }
+          // By default, show a loading spinner.
+          return const Center(child: CircularProgressIndicator());
         },
       ),
-      // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
